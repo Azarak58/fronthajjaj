@@ -86,3 +86,7 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
   }
+
+  .modal-backdrop{
+    display: none;
+  }

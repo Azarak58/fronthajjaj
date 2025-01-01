@@ -1,114 +1,62 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import Element from '../../Element';
 
 function Produit1() {
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
-    const [selectedCategory, setSelectedCategory] = useState([]);
-    const [priceRange, setPriceRange] = useState(1000);
-    const [selectedRating, setSelectedRating] = useState(0);
-    const [sortOption, setSortOption] = useState('newest');
     const [categories, setCategories] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [filterByCategory, setFilterByCategory] = useState("");
 
-    const dispatch = useDispatch();
-    const state = useSelector((state) => state);
+    // Fetch categories
     const getCategories = async () => {
         try {
             const response = await fetch(`http://127.0.0.1:8000/api/category`);
             const data = await response.json();
-            setCategories(data);
+            setCategories(data.data || []);
         } catch (error) {
             console.error('Error fetching categories:', error);
+        }
+    };
+
+    // Fetch products for the current page
+    const fetchProducts = async (page = 1, category = "") => {
+        try {
+            let url = `http://127.0.0.1:8000/api/products?page=${page}`;
+            if (category) {
+                url = `http://127.0.0.1:8000/api/products?category=${category}&page=${page}`;
+            }
+            const response = await fetch(url);
+            const data = await response.json();
+            setProducts(data.data.data || []);
+            setFilteredProducts(data.data.data || []);
+            setCurrentPage(data.data.current_page);
+            setTotalPages(data.data.last_page);
+        } catch (error) {
+            console.error('Error fetching products:', error);
         }
     };
 
     useEffect(() => {
         getCategories();
     }, []);
-    useEffect(() => {
-        fetchProducts();
-    }, []);
 
     useEffect(() => {
-        applyFilters();
-    }, [products , sortOption]);
+        fetchProducts(currentPage, filterByCategory);
+    }, [filterByCategory, currentPage]);
 
-    const fetchProducts = async () => {
-        const response = await fetch('http://127.0.0.1:8000/api/products');
-        const data = await response.json();
-        setProducts(data?.data?.data || []);
-    };
-
-    const applyFilters = () => {
-        let filtered = [...products];
-
-        // Filter by category
-        if (selectedCategory.length > 0) {
-            filtered = filtered.filter((product) =>
-                selectedCategory.includes(product.category.name)
-            );
+    const handlePageChange = (page) => {
+        if (page >= 1 && page <= totalPages) {
+            fetchProducts(page, filterByCategory);
         }
-
-        // Filter by price range
-        filtered = filtered.filter((product) => product.price <= priceRange);
-
-
-
-        // Sort products
-        filtered = filtered.sort((a, b) => {
-            if (sortOption === 'newest') return new Date(b.date) - new Date(a.date);
-            if (sortOption === 'price-asc') return a.price - b.price;
-            if (sortOption === 'price-desc') return b.price - a.price;
-            return 0;
-        });
-
-        setFilteredProducts(filtered);
-    };
-
-    const toggleWishlist = (product) => {
-        const itemExists = state.wishe.some((item) => item.id === product.id);
-        dispatch({
-            type: itemExists ? 'REMOVE_FROM_WISHLIST' : 'ADD_TO_WISHLIST',
-            payload: product,
-        });
-    };
-
-    const addToCart = (product) => {
-        dispatch({ type: 'ADD_TO_CART', payload: product });
-    };
-
-    const handleCategoryChange = (category) => {
-        setSelectedCategory((prev) =>
-            prev.includes(category) ? prev.filter((cat) => cat !== category) : [...prev, category]
-        );
-    };
-
-    const handlePriceChange = (event) => {
-        setPriceRange(event.target.value);
-    };
-
-    const handleRatingChange = (rating) => {
-        setSelectedRating(rating);
-    };
-
-    const handleSortChange = (option) => {
-        setSortOption(option);
     };
 
     return (
         <div className="container py-5">
             {/* Header Section */}
-            <div className="d-flex  align-items-center mb-4">
+            <div className="d-flex align-items-center mb-4">
                 <h4 className="mb-0 me-auto">Product Collection</h4>
-                <div className="d-flex  gap-2 align-items-center">
-                    <span className=" text-nowrap">Sort by:</span>
-                    <select className="form-select" onChange={(e) => handleSortChange(e.target.value)}>
-                        <option value="newest">Newest</option>
-                        <option value="price-asc">Price: Low to High</option>
-                        <option value="price-desc">Price: High to Low</option>
-                    </select>
-                </div>
             </div>
 
             <div className="row g-4">
@@ -121,9 +69,12 @@ function Produit1() {
                                 <div className="form-check mb-2" key={category.id}>
                                     <input
                                         className="form-check-input"
-                                        type="checkbox"
+                                        type="radio"
+                                        name="category"
+                                        value={category.name}
+                                        checked={filterByCategory === category.name}
+                                        onChange={e => setFilterByCategory(e.target.value)}
                                         id={category.id}
-                                        onChange={() => handleCategoryChange(category.name)}
                                     />
                                     <label className="form-check-label" htmlFor={category.id}>
                                         {category.name}
@@ -131,37 +82,40 @@ function Produit1() {
                                 </div>
                             ))}
                         </div>
-
-                        <div className="filter-group">
-                            <h6 className="mb-3">Price Range</h6>
-                            <input
-                                type="range"
-                                className="form-range"
-                                min="0"
-                                max="1000"
-                                value={priceRange}
-                                onChange={handlePriceChange}
-                            />
-                            <div className="d-flex justify-content-between">
-                                <span className="text-muted">$0</span>
-                                <span className="text-muted">${priceRange}</span>
-                            </div>
-                        </div>
-
-
-
-                        <button className="btn btn-outline-primary my-4 w-100" onClick={applyFilters}>
-                            Apply Filters
-                        </button>
                     </div>
                 </div>
 
                 {/* Product Cards */}
                 <div className="col-lg-9">
                     <div className="row g-4">
-                        {filteredProducts.map((product, index) => (
-                           <Element key={index} product={product} />
-                        ))}
+                        {filteredProducts.length > 0 ? (
+                            filteredProducts.map((product, index) => (
+                                <Element key={index} product={product} />
+                            ))
+                        ) : (
+                            <p>No products found.</p>
+                        )}
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="d-flex justify-content-between align-items-center mt-4">
+                        <button
+                            className="btn btn-outline-primary"
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                        >
+                            Previous
+                        </button>
+                        <span>
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                            className="btn btn-outline-primary"
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                        >
+                            Next
+                        </button>
                     </div>
                 </div>
             </div>

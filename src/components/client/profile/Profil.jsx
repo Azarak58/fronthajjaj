@@ -1,23 +1,44 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import './Profil.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { getCookie } from '../../../utils/Cookies';
 
 const Profile = () => {
+    const [token, setToken] = useState();
+    const [user, setUser] = useState({});
+      
+  
+  const Afficher = async () => {
+    const response = await fetch("http://127.0.0.1:8000/api/user", {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const data = await response.json();
+    setUser(data);
+  };
+
+      useEffect(() => {
+        Afficher();
+        const tokenFromAPI = getCookie("token");
+        setToken(tokenFromAPI)
+      }, [token]);
   return (
     <div className="min-vh-80 d-flex align-items-center top-0 start-0 w-100  justify-content-center">
       <div className="profile-cardprofil">
         {/* Image en haut */}
         <img
-          src="./imagess/image1.jpg"
+          src={`http://localhost:8000/profil/${user.image}`}
           alt="Profile"
           className="profile-photoprofil"
         />
         {/* Informations utilisateur en dessous */}
         <div className="profile-headerprofil">
-          <div><strong>Name:</strong> jhjhjhjhj</div>
-          <div><strong>First Name:</strong> hhjhjh</div>
-          <div><strong>Email:</strong> kbhghghj</div>
-          <div><strong>Address:</strong> jggfgfg</div>
+          <div><strong>Name:</strong> {user.name}</div>
+          <div><strong>First Name:</strong> {user.name}</div>
+          <div><strong>Email:</strong> {user.email}</div>
+          <div><strong>Address:</strong> {user.adresse}</div>
         </div>
 
         <div className="buttonprofil">
