@@ -10,6 +10,8 @@ function Panier() {
   const [cartlist, setCartlist] = useState([]);
   const [total, setTotal] = useState(0);
   const [token, setToken] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
 
   const dispatch = useDispatch();
 
@@ -48,11 +50,34 @@ function Panier() {
     dispatch(updateCartQuantity(id, quantity));
   };
 
-  // Proceed to payment (handle modal visibility)
-  const proceedToPayment = () => {
-    const modalElement = document.getElementById('exampleModal');
-    const modal = new Modal(modalElement); // Initialize the modal using Bootstrap's Modal
-    modal.show(); // Show the modal when the button is clicked
+  // Initialize payment
+  const initializePayment = async () => {
+    setPaymentLoading(true);
+    setPaymentError(null);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/payment/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Redirect to PayPal
+        window.location.href = data.data.approval_url;
+      } else {
+        setPaymentError(data.message || "Failed to initialize payment");
+      }
+    } catch (error) {
+      setPaymentError("An error occurred while processing your payment");
+      console.error("Payment error:", error);
+    } finally {
+      setPaymentLoading(false);
+    }
   };
 
   // On component mount, fetch token and cart data
@@ -147,7 +172,7 @@ function Panier() {
               </div>
 
               <button
-                onClick={proceedToPayment}
+                onClick={initializePayment}
                 className="btn btn-primary checkout-btn w-100 mb-3"
               >
                 Acheter maintenant
@@ -164,31 +189,46 @@ function Panier() {
                 <div className="modal-dialog">
                   <div className="modal-content">
                     <div className="modal-header">
-                      <h5 className="modal-title" id="exampleModalLabel">New message</h5>
+                      <h5 className="modal-title" id="exampleModalLabel">Confirm Payment</h5>
                       <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div className="modal-body">
-                      <form>
-                        <div className="mb-3">
-                          <label htmlFor="recipient-name" className="col-form-label">
-                            Recipient:
-                          </label>
-                          <input type="text" className="form-control" id="recipient-name" />
+                      <div className="payment-summary mb-4">
+                        <h6 className="mb-3">Order Summary</h6>
+                        <div className="d-flex justify-content-between mb-2">
+                          <span>Total Items:</span>
+                          <span>{cartlist?.items?.length || 0}</span>
                         </div>
-                        <div className="mb-3">
-                          <label htmlFor="message-text" className="col-form-label">
-                            Message:
-                          </label>
-                          <textarea className="form-control" id="message-text"></textarea>
+                        <div className="d-flex justify-content-between mb-2">
+                          <span className="fw-bold">Total Amount:</span>
+                          <span className="fw-bold">${total}</span>
                         </div>
-                      </form>
+                      </div>
+
+                      {paymentError && (
+                        <div className="alert alert-danger" role="alert">
+                          {paymentError}
+                        </div>
+                      )}
                     </div>
                     <div className="modal-footer">
                       <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
-                        Close
+                        Cancel
                       </button>
-                      <button type="button" className="btn btn-primary">
-                        Send message
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={initializePayment}
+                        disabled={paymentLoading}
+                      >
+                        {paymentLoading ? (
+                          <span>
+                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            Processing...
+                          </span>
+                        ) : (
+                          "Pay with PayPal"
+                        )}
                       </button>
                     </div>
                   </div>
